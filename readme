@@ -1,0 +1,150 @@
+This is the report of OS homework group from EPFL.
+Assignment: Developing a read only FAT32 filesystem
+
+Group members:
+
+Orcun Gumus
+
+Kıvanc Kamay
+
+ChumnMei Satay 
+
+Test file is: https://s3.eu-central-1.amazonaws.com/guemues/testfs.fat
+
+You can follow developments from git:
+https://orcungumus@bitbucket.org/orcungumus/fat32-file-system.git
+
+---------------------------------------------------------------------------------
+What We Did / What We Did Not
+
+1. Read the first 512 bytes of the device
+
+DONE
+9 May
+
+2. Parse BPB sector, read basic information (sector size, sectors per cluster, FAT size, current FAT id, etc.) and verify the filesystem is FAT32.
+Export this information via .debug/ (the code skeleton contains helpers for this)
+
+DONE
+10 MAY
+
+3. Locate and read raw data from the correct FAT table (implement vfat_next_cluster), then make sure you can follow cluster allocation chains.
+
+DONE
+11 MAY
+
+4. Implement basic root directory parsing make sure you can enumerate raw entries from the root directory until the final entry is indicated
+
+DONE
+14 MAY
+
+5. Implement basic short entry handling parse short name (remove space-padding), at- tributes, size, first cluster, skip all other entries
+
+DONE except space-padding
+14 MAY
+
+DONE with space-padding
+20 MAY
+
+6. Add an ability to read the content of a file and a directory given the number of their first cluster.
+
+DONE
+20 MAY
+
+7. Now you can start integrating with fuse make sure you can list root (e.g., ”/”) directory and fill stat entries correctly (especially attribute S_IFREG and S_IFDIR). Make sure you can read top-level files
+
+DONE
+15 MAY
+
+8. Add multi-level directory resolution(implementvfat_resolve)—traverse directory structure (i.e., handle ”/dir1/dir2/file”)
+
+DONE
+15 MAY
+
+9. Add support for long names. You will need to keep some state before you finally read the short entry holding the information about the file and you should check that long name entries are correct.
+
+NOT DONE
+WE DID NOT IMPLEMENT SUPPORT FOR LONG NAMES, OUR IMPLEMENTATION IS PASSING OVER THEM
+
+10. Fill other stat fields (atime/mtime/ctime)
+
+DONE for only mtime/ctime
+15 MAY
+
+---------------------------------------------------------------------------------
+
+EXPLANATION OF THE ERRORS THAT WE GOT FROM TESTS IN VMCHECKER
+
+1) 
+
+False fat_num_entries
+
+We have wrong fat_num_entries, it should be 127872. However, from the moodle:
+
+"fat_entries is basically the size of FAT array, i.e. the number of clusters"
+
+So we tried 2 things: 
+
+-999 for number of cluster
+-999 * 4 for 4 byte saving data for all cluster
+
+actually 127872 is 999 * 128
+
+2)
+
+"Transport endpoint is not connected" for all reads except RAND.OM file.
+
+We don't understand the reason behind this. We can read small and long files from terminal with cat
+but test gives us a 'Transport Endpoint' error. We can read large files and follow the cluster chain for
+files.
+
+Maybe it is related to EOF or size of files that we return.
+
+3)
+
+"Transport Endpoint is not connected" for also MD5. 
+
+The same error. We don't understand the reason. Example from local:
+ 
+sudo head -3 dest/LARGE1
+large1
+large1
+large1
+
+4)
+
+From the can_stat("hi"), we got "Exit status with 2".
+
+Actually, we can also see the stat of HI from local computer.
+
+sudo stat dest/HI
+  File: `dest/HI'
+  Size: 16        	Blocks: 2          IO Block: 4      regular file
+Device: 13h/19d	Inode: 136         Links: 1
+Access: (0777/-rwxrwxrwx)  Uid: (    0/    root)   Gid: (    0/    root)
+Access: 2010-05-11 14:38:23.000000000 +0200
+Modify: 2010-05-11 14:31:16.000000000 +0200
+Change: 2010-05-11 14:31:17.000000000 +0200
+ Birth: -
+ 
+ We don't understand the reason behind that also. However, it can be related to capital letter usage for the filename.
+ 
+5)
+
+For the timestamps, modify and create timestamps are correct. Only access time is a bit problematic.
+
+We used the same format for obtaining 'atime'
+info.tm_year = (((direntry.atime_date >> 9) & 0x3F) + 80);
+info.tm_mon =  (( direntry.atime_date >> 5 ) & 0xF ) - 1;
+info.tm_mday = ( direntry.atime_date  & 0x1F );    
+
+Example :
+
+		CONTROL		RESULT 
+Access	1273532400	1273575769
+Modify	1273581502	1273581502
+Change	1273581502	1273581502
+
+Access: 2010-05-11 14:38:23.000000000 +0200
+Modify: 2010-05-11 14:31:16.000000000 +0200
+Change: 2010-05-11 14:31:16.000000000 +0200
